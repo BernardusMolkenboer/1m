@@ -1,4 +1,3 @@
-// knexfile.js
 require("dotenv").config(); // Load environment variables
 
 module.exports = {

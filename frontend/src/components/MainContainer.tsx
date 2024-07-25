@@ -26,6 +26,32 @@ const MainContainer: React.FC<{ pixels: Pixel[] }> = ({ pixels }) => {
     setSelectedImagePosition({ x, y });
   };
 
+  const handleCheckout = (
+    pixels: { x: number; y: number; color: string }[]
+  ) => {
+    fetch("http://localhost:4000/api/update-pixels", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ pixels, owner: "owner_id" }), // Include owner ID or other identifying info
+    })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error("Network response was not ok");
+        }
+        return response.json();
+      })
+      .then((data) => {
+        console.log("Pixels updated successfully:", data);
+        // Handle successful checkout, e.g., showing a success message
+      })
+      .catch((error) => {
+        console.error("Error updating pixels:", error);
+        // Handle errors, e.g., showing an error message
+      });
+  };
+
   return (
     <div className="container mx-auto p-4 flex flex-col md:flex-row gap-4">
       <div className="flex-grow">
@@ -42,6 +68,7 @@ const MainContainer: React.FC<{ pixels: Pixel[] }> = ({ pixels }) => {
         <SelectionDetails
           selectedPixels={selectedPixels}
           onImageReady={handleImageReady}
+          onCheckout={handleCheckout} // Pass the handleCheckout function
         />
       </div>
     </div>

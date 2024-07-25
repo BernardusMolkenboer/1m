@@ -1,13 +1,6 @@
-const mysql = require("mysql2");
+const knex = require("knex");
+const knexConfig = require("./knexfile");
 
-const pool = mysql.createPool({
-  host: "localhost",
-  user: "root", // Your MySQL username
-  password: "W4chtw00rd!23", // Your MySQL password
-  database: "million_dollar_homepage",
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0,
-});
+const db = knex(knexConfig);
 
-module.exports = pool.promise();
+module.exports = db;

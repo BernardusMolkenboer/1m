@@ -3,11 +3,13 @@ import React, { useState, useEffect } from "react";
 interface SelectionDetailsProps {
   selectedPixels: { id: string; x: number; y: number }[];
   onImageReady: (image: HTMLImageElement, x: number, y: number) => void;
+  onCheckout: (pixels: { x: number; y: number; color: string }[]) => void;
 }
 
 const SelectionDetails: React.FC<SelectionDetailsProps> = ({
   selectedPixels,
   onImageReady,
+  onCheckout,
 }) => {
   const [image, setImage] = useState<File | null>(null);
   const [imageDimensions, setImageDimensions] = useState<{
@@ -15,7 +17,7 @@ const SelectionDetails: React.FC<SelectionDetailsProps> = ({
     height: number;
   } | null>(null);
   const [isImageValid, setIsImageValid] = useState<boolean>(false);
-  const [viewedInGrid, setViewedInGrid] = useState<boolean>(false);
+  const [imageDisplayed, setImageDisplayed] = useState<boolean>(false);
   const pixelCount = selectedPixels.length;
   const price = pixelCount * 10; // Assuming $10 per pixel
 
@@ -74,7 +76,7 @@ const SelectionDetails: React.FC<SelectionDetailsProps> = ({
     }
   };
 
-  const handleViewInGrid = () => {
+  const handleViewExample = () => {
     if (image && isImageValid) {
       const img = new Image();
       img.src = URL.createObjectURL(image);
@@ -82,7 +84,40 @@ const SelectionDetails: React.FC<SelectionDetailsProps> = ({
         const startX = Math.min(...selectedPixels.map((p) => p.x));
         const startY = Math.min(...selectedPixels.map((p) => p.y));
         onImageReady(img, startX, startY);
-        setViewedInGrid(true);
+        setImageDisplayed(true);
+      };
+    }
+  };
+
+  const handleCheckout = () => {
+    if (image && isImageValid) {
+      const img = new Image();
+      img.src = URL.createObjectURL(image);
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          ctx.drawImage(img, 0, 0);
+          const imageData = ctx.getImageData(0, 0, img.width, img.height);
+          const pixelsToUpdate: { x: number; y: number; color: string }[] = [];
+          for (let y = 0; y < img.height; y++) {
+            for (let x = 0; x < img.width; x++) {
+              const index = (y * img.width + x) * 4;
+              const r = imageData.data[index];
+              const g = imageData.data[index + 1];
+              const b = imageData.data[index + 2];
+              const a = imageData.data[index + 3];
+              const color = `rgba(${r},${g},${b},${a / 255})`;
+              const gridX = selectedPixels[0].x + x;
+              const gridY = selectedPixels[0].y + y;
+              pixelsToUpdate.push({ x: gridX, y: gridY, color });
+            }
+          }
+          console.log("Pixels to update:", pixelsToUpdate);
+          onCheckout(pixelsToUpdate);
+        }
       };
     }
   };
@@ -131,7 +166,7 @@ const SelectionDetails: React.FC<SelectionDetailsProps> = ({
       </div>
       <button
         disabled={!isImageValid || pixelCount === 0}
-        onClick={handleViewInGrid}
+        onClick={handleViewExample}
         className={`w-full py-2 px-4 text-white rounded-md ${
           isImageValid && pixelCount > 0
             ? "bg-blue-500 hover:bg-blue-600"
@@ -140,10 +175,10 @@ const SelectionDetails: React.FC<SelectionDetailsProps> = ({
       >
         View Example in Grid
       </button>
-      {viewedInGrid && (
+      {imageDisplayed && (
         <button
-          className="mt-4 w-full py-2 px-4 bg-green-500 text-white rounded-md hover:bg-green-600"
-          onClick={() => console.log("Checkout functionality here")}
+          className="w-full py-2 px-4 mt-4 text-white rounded-md bg-green-500 hover:bg-green-600"
+          onClick={handleCheckout}
         >
           Checkout
         </button>
