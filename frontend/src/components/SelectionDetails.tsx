@@ -2,10 +2,12 @@ import React, { useState, useEffect } from "react";
 
 interface SelectionDetailsProps {
   selectedPixels: { id: string; x: number; y: number }[];
+  onImageReady: (image: HTMLImageElement, x: number, y: number) => void;
 }
 
 const SelectionDetails: React.FC<SelectionDetailsProps> = ({
   selectedPixels,
+  onImageReady,
 }) => {
   const [image, setImage] = useState<File | null>(null);
   const [imageDimensions, setImageDimensions] = useState<{
@@ -13,6 +15,7 @@ const SelectionDetails: React.FC<SelectionDetailsProps> = ({
     height: number;
   } | null>(null);
   const [isImageValid, setIsImageValid] = useState<boolean>(false);
+  const [viewedInGrid, setViewedInGrid] = useState<boolean>(false);
   const pixelCount = selectedPixels.length;
   const price = pixelCount * 10; // Assuming $10 per pixel
 
@@ -71,6 +74,19 @@ const SelectionDetails: React.FC<SelectionDetailsProps> = ({
     }
   };
 
+  const handleViewInGrid = () => {
+    if (image && isImageValid) {
+      const img = new Image();
+      img.src = URL.createObjectURL(image);
+      img.onload = () => {
+        const startX = Math.min(...selectedPixels.map((p) => p.x));
+        const startY = Math.min(...selectedPixels.map((p) => p.y));
+        onImageReady(img, startX, startY);
+        setViewedInGrid(true);
+      };
+    }
+  };
+
   return (
     <div className="p-4 bg-white shadow-md rounded-md">
       <h2 className="text-xl font-bold mb-4">Selection Details</h2>
@@ -115,14 +131,23 @@ const SelectionDetails: React.FC<SelectionDetailsProps> = ({
       </div>
       <button
         disabled={!isImageValid || pixelCount === 0}
+        onClick={handleViewInGrid}
         className={`w-full py-2 px-4 text-white rounded-md ${
           isImageValid && pixelCount > 0
             ? "bg-blue-500 hover:bg-blue-600"
             : "bg-gray-400 cursor-not-allowed"
         }`}
       >
-        Continue to Purchase
+        View Example in Grid
       </button>
+      {viewedInGrid && (
+        <button
+          className="mt-4 w-full py-2 px-4 bg-green-500 text-white rounded-md hover:bg-green-600"
+          onClick={() => console.log("Checkout functionality here")}
+        >
+          Checkout
+        </button>
+      )}
       {!isImageValid && image && (
         <p className="text-red-500 text-sm mt-2">
           The uploaded image dimensions do not match the selected area.

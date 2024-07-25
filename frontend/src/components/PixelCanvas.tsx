@@ -8,6 +8,8 @@ interface PixelCanvasProps {
   onPixelSelection: (
     selectedPixels: { id: string; x: number; y: number }[]
   ) => void;
+  selectedImage: HTMLImageElement | null;
+  selectedImagePosition: { x: number; y: number } | null;
 }
 
 const PixelCanvas: React.FC<PixelCanvasProps> = ({
@@ -15,6 +17,8 @@ const PixelCanvas: React.FC<PixelCanvasProps> = ({
   width,
   height,
   onPixelSelection,
+  selectedImage,
+  selectedImagePosition,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -27,17 +31,16 @@ const PixelCanvas: React.FC<PixelCanvasProps> = ({
   const [selectedPixels, setSelectedPixels] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    console.log("Rendering pixels:", pixels); // Debug line
-
     const canvas = canvasRef.current;
     if (canvas) {
       const ctx = canvas.getContext("2d");
       if (ctx) {
         ctx.clearRect(0, 0, width, height);
 
+        // Draw all pixels from the dataset
         pixels.forEach((pixel) => {
           let color = pixel.color ?? "lightgray";
-          if (color === "gray") color = "#D3D3D3"; // Ensure gray color is visible
+          if (color === "gray") color = "#D3D3D3"; // Lighten gray color
           ctx.fillStyle = color;
           ctx.fillRect(pixel.x, pixel.y, 1, 1);
         });
@@ -45,34 +48,47 @@ const PixelCanvas: React.FC<PixelCanvasProps> = ({
         // Highlight selected pixels
         selectedPixels.forEach((key) => {
           const [x, y] = key.split("-").map(Number);
-          ctx.fillStyle = "rgba(173, 216, 230, 0.5)"; // Light blue for selected pixels
+          ctx.fillStyle = "rgba(0, 122, 255, 0.3)"; // Semi-transparent blue for selection
           ctx.fillRect(x, y, 1, 1);
-          ctx.strokeStyle = "blue"; // Blue border for selected pixels
+          ctx.strokeStyle = "rgba(0, 122, 255, 0.8)"; // Blue border for selected pixels
           ctx.lineWidth = 1;
           ctx.strokeRect(x, y, 1, 1);
         });
 
-        // Draw the selection rectangle during dragging
+        // Draw the selected image if available, above all other elements
+        if (selectedImage && selectedImagePosition) {
+          ctx.drawImage(
+            selectedImage,
+            selectedImagePosition.x,
+            selectedImagePosition.y
+          );
+        }
+
+        // Draw the selection rectangle during dragging, above the image
         if (isDragging && startPoint && endPoint) {
-          ctx.fillStyle = "rgba(173, 216, 230, 0.3)"; // Light blue fill for the selection area
-          ctx.fillRect(
-            Math.min(startPoint.x, endPoint.x),
-            Math.min(startPoint.y, endPoint.y),
-            Math.abs(endPoint.x - startPoint.x),
-            Math.abs(endPoint.y - startPoint.y)
-          );
-          ctx.strokeStyle = "blue";
+          ctx.fillStyle = "rgba(0, 122, 255, 0.2)"; // Lighter fill during drag
+          ctx.strokeStyle = "rgba(0, 122, 255, 0.8)"; // Solid border during drag
           ctx.lineWidth = 1;
-          ctx.strokeRect(
-            Math.min(startPoint.x, endPoint.x),
-            Math.min(startPoint.y, endPoint.y),
-            Math.abs(endPoint.x - startPoint.x),
-            Math.abs(endPoint.y - startPoint.y)
-          );
+          const startX = Math.min(startPoint.x, endPoint.x);
+          const startY = Math.min(startPoint.y, endPoint.y);
+          const rectWidth = Math.abs(endPoint.x - startPoint.x);
+          const rectHeight = Math.abs(endPoint.y - startPoint.y);
+          ctx.fillRect(startX, startY, rectWidth, rectHeight);
+          ctx.strokeRect(startX, startY, rectWidth, rectHeight);
         }
       }
     }
-  }, [pixels, width, height, isDragging, startPoint, endPoint, selectedPixels]);
+  }, [
+    pixels,
+    width,
+    height,
+    isDragging,
+    startPoint,
+    endPoint,
+    selectedPixels,
+    selectedImage,
+    selectedImagePosition,
+  ]);
 
   const getMousePos = (canvas: HTMLCanvasElement, evt: MouseEvent) => {
     const rect = canvas.getBoundingClientRect();
@@ -93,20 +109,32 @@ const PixelCanvas: React.FC<PixelCanvasProps> = ({
   const handleMouseMove = (event: React.MouseEvent<HTMLCanvasElement>) => {
     if (isDragging) {
       const pos = getMousePos(canvasRef.current!, event.nativeEvent);
-      setEndPoint(pos);
-      updateSelectedPixels(startPoint, pos);
+
+      // Check if the new position crosses into an owned pixel
+      const pixelsWithinArea = pixels.filter(
+        (pixel) =>
+          pixel.x >= Math.min(startPoint!.x, pos.x) &&
+          pixel.x <= Math.max(startPoint!.x, pos.x) &&
+          pixel.y >= Math.min(startPoint!.y, pos.y) &&
+          pixel.y <= Math.max(startPoint!.y, pos.y)
+      );
+
+      const ownedPixelFound = pixelsWithinArea.some((pixel) => pixel.is_owned);
+
+      if (!ownedPixelFound) {
+        setEndPoint(pos);
+        updateSelectedPixels(startPoint, pos);
+      }
     }
   };
 
   const handleMouseUp = () => {
     setIsDragging(false);
-    if (selectedPixels.size > 0) {
-      const selected = Array.from(selectedPixels).map((key) => {
-        const [x, y] = key.split("-").map(Number);
-        return { id: key, x, y };
-      });
-      onPixelSelection(selected);
-    }
+    const selected = Array.from(selectedPixels).map((key) => {
+      const [x, y] = key.split("-").map(Number);
+      return { id: key, x, y };
+    });
+    onPixelSelection(selected);
   };
 
   const updateSelectedPixels = (
@@ -116,10 +144,11 @@ const PixelCanvas: React.FC<PixelCanvasProps> = ({
     if (!start || !end) return;
 
     const selected = new Set<string>();
+
     const minX = Math.min(start.x, end.x);
     const maxX = Math.max(start.x, end.x);
     const minY = Math.min(start.y, end.y);
-    const maxY = Math.max(end.y, start.y);
+    const maxY = Math.max(start.y, end.y);
 
     pixels.forEach((pixel) => {
       if (
@@ -127,7 +156,7 @@ const PixelCanvas: React.FC<PixelCanvasProps> = ({
         pixel.x <= maxX &&
         pixel.y >= minY &&
         pixel.y <= maxY &&
-        !pixel.is_owned
+        !pixel.is_owned // Skip already owned pixels
       ) {
         selected.add(`${pixel.x}-${pixel.y}`);
       }

@@ -7,11 +7,23 @@ const MainContainer: React.FC<{ pixels: Pixel[] }> = ({ pixels }) => {
   const [selectedPixels, setSelectedPixels] = useState<
     { id: string; x: number; y: number }[]
   >([]);
+  const [selectedImage, setSelectedImage] = useState<HTMLImageElement | null>(
+    null
+  );
+  const [selectedImagePosition, setSelectedImagePosition] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
 
   const handlePixelSelection = (
     selected: { id: string; x: number; y: number }[]
   ) => {
     setSelectedPixels(selected);
+  };
+
+  const handleImageReady = (image: HTMLImageElement, x: number, y: number) => {
+    setSelectedImage(image);
+    setSelectedImagePosition({ x, y });
   };
 
   return (
@@ -22,10 +34,15 @@ const MainContainer: React.FC<{ pixels: Pixel[] }> = ({ pixels }) => {
           width={1000}
           height={1000}
           onPixelSelection={handlePixelSelection}
+          selectedImage={selectedImage}
+          selectedImagePosition={selectedImagePosition}
         />
       </div>
       <div className="w-full md:w-1/3">
-        <SelectionDetails selectedPixels={selectedPixels} />
+        <SelectionDetails
+          selectedPixels={selectedPixels}
+          onImageReady={handleImageReady}
+        />
       </div>
     </div>
   );
