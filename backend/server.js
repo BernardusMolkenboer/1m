@@ -16,23 +16,19 @@ app.use(
   })
 );
 
-// Middleware to parse JSON bodies
-app.use(express.json());
+// Middleware to parse JSON bodies with increased limit
+app.use(express.json({ limit: "50mb" })); // Set limit as needed
 
 function rgbaToHex(rgba) {
-  // Extract the rgba values using a regular expression
   const result = /^rgba?\((\d+),\s*(\d+),\s*(\d+),?\s*(\d*\.?\d+)?\)$/.exec(
     rgba
   );
-  if (!result) {
-    return null; // Return null if not a valid rgba string
-  }
+  if (!result) return null;
 
   const r = parseInt(result[1], 10);
   const g = parseInt(result[2], 10);
   const b = parseInt(result[3], 10);
 
-  // Convert to hex and return
   return `#${((1 << 24) + (r << 16) + (g << 8) + b)
     .toString(16)
     .slice(1)
@@ -56,7 +52,7 @@ app.get("/api/pixels", async (req, res) => {
 app.post("/api/update-pixels", async (req, res) => {
   const { pixels, owner } = req.body;
 
-  console.log("Received pixels for update:", pixels);
+  console.log("Received pixels for update:", pixels.length);
   console.log("Owner ID:", owner);
 
   try {
@@ -72,6 +68,10 @@ app.post("/api/update-pixels", async (req, res) => {
 
           if (result === 0) {
             console.warn(`Pixel at (${x}, ${y}) not found or already owned.`);
+          } else {
+            console.log(
+              `Pixel at (${x}, ${y}) updated with color ${hexColor}.`
+            );
           }
         } else {
           console.warn(
